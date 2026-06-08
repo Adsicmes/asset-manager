@@ -21,7 +21,9 @@
   <ItemGroup>
     <ProjectReference Include="..\..\src\AssetManager.Application\AssetManager.Application.csproj" />
     <ProjectReference Include="..\..\src\AssetManager.Domain\AssetManager.Domain.csproj" />
-    <ProjectReference Include="..\..\src\AssetManager.Plugin.Abstractions\AssetManager.Plugin.Abstractions.csproj" />
+    <ProjectReference Include="..\..\src\AssetManager.Infrastructure.Storage\AssetManager.Infrastructure.Storage.csproj" />
+    <ProjectReference Include="..\..\src\AssetManager.Plugin.Host\AssetManager.Plugin.Host.csproj" />
+    <ProjectReference Include="..\..\src\AssetManager.Plugin.Sdk\AssetManager.Plugin.Sdk.csproj" />
   </ItemGroup>
 
 </Project>
