@@ -1,4 +1,5 @@
 using AssetManager.Application.Library;
+using AssetManager.Application.BackgroundTasks;
 using AssetManager.Desktop.Localization;
 using AssetManager.Desktop.Preview;
 using AssetManager.Infrastructure.Storage.Library;
@@ -19,12 +20,14 @@ public static class DesktopBootstrapper
         var knownLibraryService = new KnownLibraryApplicationService(
             libraryService,
             new JsonKnownLibraryStore());
+        var backgroundTaskCenter = new InMemoryBackgroundTaskCenter();
 
         return new MainWindow(
             libraryService,
             knownLibraryService,
             BuiltInAssetPreviewRenderers.Create(),
             new UiSettingsStore(),
-            new WindowsThumbnailCacheService());
+            new WindowsThumbnailCacheService(),
+            backgroundTaskCenter);
     }
 }
