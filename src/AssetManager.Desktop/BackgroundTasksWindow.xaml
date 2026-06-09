@@ -1,0 +1,64 @@
+<Window x:Class="AssetManager.Desktop.BackgroundTasksWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="{DynamicResource BackgroundTasksWindowTitle}"
+        Width="1120"
+        Height="480"
+        MinWidth="920"
+        MinHeight="320"
+        Background="#F5F7FA"
+        WindowStartupLocation="CenterOwner">
+    <Grid Margin="12">
+        <Border Background="White"
+                BorderBrush="#D6DCE5"
+                BorderThickness="1">
+            <DataGrid x:Name="TaskGrid"
+                      ItemsSource="{Binding Tasks}"
+                      AutoGenerateColumns="False"
+                      CanUserAddRows="False"
+                      CanUserDeleteRows="False"
+                      IsReadOnly="True"
+                      HeadersVisibility="Column"
+                      GridLinesVisibility="Horizontal"
+                      RowHeaderWidth="0"
+                      SelectionMode="Single"
+                      Background="Transparent"
+                      BorderThickness="0">
+                <DataGrid.Columns>
+                    <DataGridTextColumn Header="{DynamicResource TaskTitleHeader}"
+                                        Binding="{Binding Title}"
+                                        Width="2*" />
+                    <DataGridTextColumn Header="{DynamicResource TaskStateHeader}"
+                                        Binding="{Binding StateText}"
+                                        Width="110" />
+                    <DataGridTextColumn Header="{DynamicResource TaskProgressHeader}"
+                                        Binding="{Binding ProgressText}"
+                                        Width="110" />
+                    <DataGridTextColumn Header="{DynamicResource TaskStatusHeader}"
+                                        Binding="{Binding StatusText}"
+                                        Width="2*" />
+                    <DataGridTextColumn Header="{DynamicResource TaskStartedHeader}"
+                                        Binding="{Binding StartedAtText}"
+                                        Width="160" />
+                    <DataGridTextColumn Header="{DynamicResource TaskFinishedHeader}"
+                                        Binding="{Binding FinishedAtText}"
+                                        Width="160" />
+                    <DataGridTextColumn Header="{DynamicResource TaskErrorHeader}"
+                                        Binding="{Binding ErrorText}"
+                                        Width="2*" />
+                    <DataGridTemplateColumn Header="{DynamicResource TaskActionsHeader}"
+                                            Width="110">
+                        <DataGridTemplateColumn.CellTemplate>
+                            <DataTemplate>
+                                <Button Content="{DynamicResource BackgroundTaskCancelButton}"
+                                        Width="82"
+                                        IsEnabled="{Binding CanCancel}"
+                                        Click="Cancel_Click" />
+                            </DataTemplate>
+                        </DataGridTemplateColumn.CellTemplate>
+                    </DataGridTemplateColumn>
+                </DataGrid.Columns>
+            </DataGrid>
+        </Border>
+    </Grid>
+</Window>
