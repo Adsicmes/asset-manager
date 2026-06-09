@@ -38,6 +38,11 @@ public interface IAssetContentStore
         LibraryLocation location,
         CancellationToken cancellationToken = default);
 
+    Task<IReadOnlyList<StoredContentFile>> ScanContentFilesAsync(
+        LibraryLocation location,
+        IEnumerable<LibraryRelativePath> paths,
+        CancellationToken cancellationToken = default);
+
     Task<bool> FileExistsAsync(string fullPath, CancellationToken cancellationToken = default);
 
     Task<string> ReadTextPreviewAsync(

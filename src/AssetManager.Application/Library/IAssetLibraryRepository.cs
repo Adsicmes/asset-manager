@@ -25,6 +25,16 @@ public interface IAssetLibraryRepository
         Guid assetId,
         CancellationToken cancellationToken = default);
 
+    Task<IReadOnlyList<AssetRecord>> GetByRelativePathsAsync(
+        LibraryLocation location,
+        IEnumerable<LibraryRelativePath> paths,
+        CancellationToken cancellationToken = default);
+
+    Task<IReadOnlyList<AssetRecord>> GetByRelativePathPrefixesAsync(
+        LibraryLocation location,
+        IEnumerable<LibraryRelativePath> paths,
+        CancellationToken cancellationToken = default);
+
     Task UpdateMetadataAsync(
         LibraryLocation location,
         Guid assetId,
@@ -43,5 +53,10 @@ public interface IAssetLibraryRepository
         LibraryLocation location,
         Guid assetId,
         AssetStatus status,
+        CancellationToken cancellationToken = default);
+
+    Task DeleteAssetAsync(
+        LibraryLocation location,
+        Guid assetId,
         CancellationToken cancellationToken = default);
 }
