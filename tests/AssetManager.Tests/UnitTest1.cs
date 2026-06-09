@@ -1,4 +1,6 @@
+using AssetManager.Application.BackgroundTasks;
 using AssetManager.Application.Library;
+using AssetManager.Desktop;
 using AssetManager.Domain.Library;
 using AssetManager.Infrastructure.Storage.Library;
 using AssetManager.Plugin.Abstractions;
@@ -356,7 +358,7 @@ public class UnitTest1
     }
 
     [Fact]
-    public async Task Synchronize_MarksDeletedFileMissing()
+    public async Task Synchronize_DeletesAssetRecordWhenFileIsMissing()
     {
         var libraryRoot = CreateTempRoot();
         var sourceRoot = CreateTempRoot();
@@ -376,10 +378,117 @@ public class UnitTest1
 
             var syncResult = await service.SynchronizeAsync(session.Location);
             var asset = await new SqliteAssetLibraryRepository().GetByIdAsync(session.Location, imported.Id);
+            var assets = await service.SearchAsync(session.Location, LibraryRelativePath.Root, string.Empty, []);
 
             Assert.Equal(1, syncResult.MissingCount);
+            Assert.Null(asset);
+            Assert.DoesNotContain(assets, candidate => candidate.Id == imported.Id);
+        }
+        finally
+        {
+            DeleteTempRoot(libraryRoot);
+            DeleteTempRoot(sourceRoot);
+        }
+    }
+
+    [Fact]
+    public async Task SynchronizePaths_RegistersOnlyChangedNewFile()
+    {
+        var libraryRoot = CreateTempRoot();
+
+        try
+        {
+            var service = CreateLibraryService();
+            var session = await service.OpenOrCreateAsync(libraryRoot);
+            var newFile = Path.Combine(libraryRoot, "external.txt");
+            File.WriteAllText(newFile, "external content");
+
+            var syncResult = await service.SynchronizePathsAsync(session.Location, [newFile]);
+            var assets = await service.SearchAsync(session.Location, LibraryRelativePath.Root, "external", []);
+
+            var asset = Assert.Single(assets);
+            Assert.Equal("external.txt", asset.LibraryRelativePath.Value);
+            Assert.Equal(0, syncResult.UpdatedCount);
+            Assert.Equal(0, syncResult.MovedCount);
+            Assert.Equal(0, syncResult.MissingCount);
+            Assert.Equal(1, syncResult.NewAssetCount);
+            Assert.Contains(syncResult.AffectedAssets ?? [], changed => changed.Id == asset.Id);
+        }
+        finally
+        {
+            DeleteTempRoot(libraryRoot);
+        }
+    }
+
+    [Fact]
+    public async Task SynchronizePaths_DeletesOnlyChangedMissingFile()
+    {
+        var libraryRoot = CreateTempRoot();
+        var sourceRoot = CreateTempRoot();
+
+        try
+        {
+            var sourceFile = Path.Combine(sourceRoot, "removed.txt");
+            File.WriteAllText(sourceFile, "remove me");
+
+            var service = CreateLibraryService();
+            var session = await service.OpenOrCreateAsync(libraryRoot);
+            var imported = (await service.ImportPathsAsync(session.Location, LibraryRelativePath.Root, [sourceFile]))
+                .ImportedAssets
+                .Single();
+            var removedFile = Path.Combine(libraryRoot, "removed.txt");
+            File.Delete(removedFile);
+
+            var syncResult = await service.SynchronizePathsAsync(session.Location, [removedFile]);
+            var asset = await new SqliteAssetLibraryRepository().GetByIdAsync(session.Location, imported.Id);
+
+            Assert.Equal(0, syncResult.UpdatedCount);
+            Assert.Equal(0, syncResult.MovedCount);
+            Assert.Equal(1, syncResult.MissingCount);
+            Assert.Equal(0, syncResult.NewAssetCount);
+            Assert.Null(asset);
+            Assert.Contains(syncResult.RemovedAssetIds ?? [], id => id == imported.Id);
+        }
+        finally
+        {
+            DeleteTempRoot(libraryRoot);
+            DeleteTempRoot(sourceRoot);
+        }
+    }
+
+    [Fact]
+    public async Task SynchronizePaths_ReattachesChangedRenameByContentHash()
+    {
+        var libraryRoot = CreateTempRoot();
+        var sourceRoot = CreateTempRoot();
+
+        try
+        {
+            var sourceFile = Path.Combine(sourceRoot, "before.txt");
+            File.WriteAllText(sourceFile, "rename me");
+
+            var service = CreateLibraryService();
+            var session = await service.OpenOrCreateAsync(libraryRoot);
+            var imported = (await service.ImportPathsAsync(session.Location, LibraryRelativePath.Root, [sourceFile]))
+                .ImportedAssets
+                .Single();
+            await service.UpdateMetadataAsync(session.Location, imported.Id, "keep metadata", ["renamed"]);
+
+            var oldPath = Path.Combine(libraryRoot, "before.txt");
+            var newPath = Path.Combine(libraryRoot, "after.txt");
+            File.Move(oldPath, newPath);
+
+            var syncResult = await service.SynchronizePathsAsync(session.Location, [oldPath, newPath]);
+            var asset = await new SqliteAssetLibraryRepository().GetByIdAsync(session.Location, imported.Id);
+
+            Assert.Equal(0, syncResult.UpdatedCount);
+            Assert.Equal(1, syncResult.MovedCount);
+            Assert.Equal(0, syncResult.MissingCount);
+            Assert.Equal(0, syncResult.NewAssetCount);
             Assert.NotNull(asset);
-            Assert.Equal(AssetStatus.Missing, asset.Status);
+            Assert.Equal("after.txt", asset.LibraryRelativePath.Value);
+            Assert.Contains("renamed", asset.Tags);
+            Assert.Contains(syncResult.AffectedAssets ?? [], changed => changed.Id == imported.Id);
         }
         finally
         {
@@ -582,6 +691,180 @@ public class UnitTest1
     }
 
     [Fact]
+    public void BackgroundTaskCenter_StartUpdateAndCompletePublishesSnapshots()
+    {
+        var taskCenter = new InMemoryBackgroundTaskCenter();
+        IReadOnlyList<BackgroundTaskSnapshot>? lastSnapshots = null;
+        taskCenter.SnapshotsChanged += snapshots => lastSnapshots = snapshots;
+
+        using var session = taskCenter.StartTask(new BackgroundTaskStartRequest(
+            BackgroundTaskKind.ImportAssets,
+            "Import Assets",
+            "Preparing",
+            IsCancelable: true));
+
+        session.Update("Copying", new BackgroundTaskProgress(2, 5, "files"));
+        session.Complete("Completed");
+
+        var snapshot = Assert.Single(taskCenter.GetSnapshots());
+        Assert.NotNull(lastSnapshots);
+        Assert.Equal(snapshot.Id, lastSnapshots![0].Id);
+        Assert.Equal(BackgroundTaskState.Completed, snapshot.State);
+        Assert.Equal("Completed", snapshot.StatusText);
+        Assert.Equal(2, snapshot.Progress.CompletedUnits);
+        Assert.Equal(5, snapshot.Progress.TotalUnits);
+    }
+
+    [Fact]
+    public void BackgroundTaskCenter_CompletePartiallyUsesPartialSuccessState()
+    {
+        var taskCenter = new InMemoryBackgroundTaskCenter();
+
+        using var session = taskCenter.StartTask(new BackgroundTaskStartRequest(
+            BackgroundTaskKind.PluginOperation,
+            "Plugin Task",
+            "Running"));
+
+        session.CompletePartially("Completed with warnings", "1 item skipped");
+
+        var snapshot = Assert.Single(taskCenter.GetSnapshots());
+        Assert.Equal(BackgroundTaskState.PartialSuccess, snapshot.State);
+        Assert.Equal("Completed with warnings", snapshot.StatusText);
+        Assert.Equal("1 item skipped", snapshot.ErrorMessage);
+        Assert.Null(snapshot.ErrorType);
+    }
+
+    [Fact]
+    public void BackgroundTaskCenter_RequestCancelSignalsCancellationToken()
+    {
+        var taskCenter = new InMemoryBackgroundTaskCenter();
+        using var session = taskCenter.StartTask(new BackgroundTaskStartRequest(
+            BackgroundTaskKind.ImportAssets,
+            "Import Assets",
+            "Preparing",
+            IsCancelable: true));
+
+        Assert.True(taskCenter.RequestCancel(session.TaskId));
+        Assert.True(session.CancellationToken.IsCancellationRequested);
+
+        session.Cancel("Canceled");
+
+        var snapshot = Assert.Single(taskCenter.GetSnapshots());
+        Assert.Equal(BackgroundTaskState.Canceled, snapshot.State);
+        Assert.False(snapshot.IsCancelable);
+    }
+
+    [Fact]
+    public void BackgroundTaskCenter_FailCapturesExceptionType()
+    {
+        var taskCenter = new InMemoryBackgroundTaskCenter();
+
+        using var session = taskCenter.StartTask(new BackgroundTaskStartRequest(
+            BackgroundTaskKind.ImportAssets,
+            "Import Assets",
+            "Preparing"));
+
+        session.Fail(new IOException("disk error"), "Import failed");
+
+        var snapshot = Assert.Single(taskCenter.GetSnapshots());
+        Assert.Equal(BackgroundTaskState.Failed, snapshot.State);
+        Assert.Equal("disk error", snapshot.ErrorMessage);
+        Assert.Equal(nameof(IOException), snapshot.ErrorType);
+    }
+
+    [Fact]
+    public void BackgroundTaskCenter_TrimsFinishedHistory()
+    {
+        var taskCenter = new InMemoryBackgroundTaskCenter(historyLimit: 2);
+
+        for (var index = 0; index < 3; index++)
+        {
+            using var session = taskCenter.StartTask(new BackgroundTaskStartRequest(
+                BackgroundTaskKind.PluginOperation,
+                $"Task {index}",
+                "Running"));
+            session.Complete($"Completed {index}");
+        }
+
+        var snapshots = taskCenter.GetSnapshots();
+
+        Assert.Equal(2, snapshots.Count);
+        Assert.DoesNotContain(snapshots, snapshot => snapshot.Title == "Task 0");
+    }
+
+    [Fact]
+    public void BackgroundTaskPresentation_SelectSummaryTaskPrefersImportOverNewerThumbnailTask()
+    {
+        var baseTime = DateTimeOffset.Parse("2026-06-08T12:00:00+08:00");
+        var snapshots = new[]
+        {
+            CreateSnapshot(
+                Guid.NewGuid(),
+                BackgroundTaskKind.GenerateThumbnails,
+                BackgroundTaskState.Running,
+                "Generating thumbnails",
+                baseTime.AddMinutes(2)),
+            CreateSnapshot(
+                Guid.NewGuid(),
+                BackgroundTaskKind.ImportAssets,
+                BackgroundTaskState.Running,
+                "Importing assets",
+                baseTime)
+        };
+
+        var summary = BackgroundTaskPresentation.SelectSummaryTask(snapshots);
+
+        Assert.NotNull(summary);
+        Assert.Equal(BackgroundTaskKind.ImportAssets, summary!.Kind);
+    }
+
+    [Fact]
+    public void BackgroundTaskPresentation_OrderForDisplayPlacesRunningTasksByPriorityThenRecentHistory()
+    {
+        var baseTime = DateTimeOffset.Parse("2026-06-08T12:00:00+08:00");
+        var pluginTask = CreateSnapshot(
+            Guid.NewGuid(),
+            BackgroundTaskKind.PluginOperation,
+            BackgroundTaskState.Running,
+            "Plugin task",
+            baseTime.AddMinutes(1));
+        var syncTask = CreateSnapshot(
+            Guid.NewGuid(),
+            BackgroundTaskKind.SynchronizeLibrary,
+            BackgroundTaskState.Running,
+            "Sync task",
+            baseTime.AddMinutes(3));
+        var completedTask = CreateSnapshot(
+            Guid.NewGuid(),
+            BackgroundTaskKind.ImportAssets,
+            BackgroundTaskState.Completed,
+            "Completed task",
+            baseTime.AddMinutes(-2),
+            baseTime.AddMinutes(4));
+
+        var ordered = BackgroundTaskPresentation.OrderForDisplay([pluginTask, completedTask, syncTask]);
+
+        Assert.Collection(
+            ordered,
+            snapshot => Assert.Equal(syncTask.Id, snapshot.Id),
+            snapshot => Assert.Equal(pluginTask.Id, snapshot.Id),
+            snapshot => Assert.Equal(completedTask.Id, snapshot.Id));
+    }
+
+    [Fact]
+    public void LibraryFileSystemChangeMonitor_IgnoresAssetManagerManagementDirectory()
+    {
+        var root = Path.Combine("D:", "library");
+
+        Assert.True(LibraryFileSystemChangeMonitor.IsManagementPath(
+            root,
+            Path.Combine(root, LibraryLocation.ManagementDirectoryName, LibraryLocation.DatabaseFileName)));
+        Assert.False(LibraryFileSystemChangeMonitor.IsManagementPath(
+            root,
+            Path.Combine(root, "images", "photo.png")));
+    }
+
+    [Fact]
     public void PluginRegistry_AggregatesContributionsAndRejectsDuplicateIds()
     {
         var registry = new PluginRegistry();
@@ -703,6 +986,26 @@ public class UnitTest1
     private static void AssertNoProjectReferences(string projectPath)
     {
         Assert.Empty(ReadProjectReferences(projectPath));
+    }
+
+    private static BackgroundTaskSnapshot CreateSnapshot(
+        Guid id,
+        BackgroundTaskKind kind,
+        BackgroundTaskState state,
+        string statusText,
+        DateTimeOffset startedAt,
+        DateTimeOffset? finishedAt = null)
+    {
+        return new BackgroundTaskSnapshot(
+            id,
+            kind,
+            kind.ToString(),
+            statusText,
+            state,
+            BackgroundTaskProgress.None,
+            false,
+            startedAt,
+            finishedAt);
     }
 
     private sealed class TestPlugin : AssetManagerPluginBase

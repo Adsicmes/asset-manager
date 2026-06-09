@@ -1,7 +1,7 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <TargetFramework>net10.0</TargetFramework>
+    <TargetFramework>net10.0-windows</TargetFramework>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
     <IsPackable>false</IsPackable>
@@ -20,6 +20,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\..\src\AssetManager.Application\AssetManager.Application.csproj" />
+    <ProjectReference Include="..\..\src\AssetManager.Desktop\AssetManager.Desktop.csproj" />
     <ProjectReference Include="..\..\src\AssetManager.Domain\AssetManager.Domain.csproj" />
     <ProjectReference Include="..\..\src\AssetManager.Infrastructure.Storage\AssetManager.Infrastructure.Storage.csproj" />
     <ProjectReference Include="..\..\src\AssetManager.Plugin.Host\AssetManager.Plugin.Host.csproj" />
