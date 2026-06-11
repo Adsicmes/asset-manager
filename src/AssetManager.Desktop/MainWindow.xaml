@@ -229,13 +229,19 @@
                                             BorderThickness="1"
                                             CornerRadius="6"
                                             Padding="8">
-                                        <StackPanel>
-                                            <Border Height="132"
+                                        <Grid>
+                                            <Grid.RowDefinitions>
+                                                <RowDefinition Height="*" />
+                                                <RowDefinition Height="Auto" />
+                                                <RowDefinition Height="Auto" />
+                                            </Grid.RowDefinitions>
+
+                                            <Border Grid.Row="0"
                                                     Background="#E8EEF5"
                                                     CornerRadius="4">
                                                 <Grid>
                                                     <Image Source="{Binding ThumbnailImageUri}"
-                                                           Stretch="UniformToFill">
+                                                           Stretch="Uniform">
                                                         <Image.Style>
                                                             <Style TargetType="Image">
                                                                 <Setter Property="Visibility" Value="Collapsed" />
@@ -269,13 +275,15 @@
                                                 </Grid>
                                             </Border>
 
-                                            <TextBlock Text="{Binding DisplayName}"
+                                            <TextBlock Grid.Row="1"
+                                                       Text="{Binding DisplayName}"
                                                        FontWeight="SemiBold"
                                                        Margin="0,8,0,6"
                                                        MaxHeight="42"
                                                        TextTrimming="CharacterEllipsis" />
 
-                                            <ItemsControl ItemsSource="{Binding ThumbnailFields}">
+                                            <ItemsControl Grid.Row="2"
+                                                          ItemsSource="{Binding ThumbnailFields}">
                                                 <ItemsControl.ItemTemplate>
                                                     <DataTemplate DataType="{x:Type local:ThumbnailFieldDisplay}">
                                                         <DockPanel Margin="0,0,0,3"
@@ -290,7 +298,7 @@
                                                     </DataTemplate>
                                                 </ItemsControl.ItemTemplate>
                                             </ItemsControl>
-                                        </StackPanel>
+                                        </Grid>
                                     </Border>
                                     <DataTemplate.Triggers>
                                         <DataTrigger Binding="{Binding IsSelected, RelativeSource={RelativeSource AncestorType=ListBoxItem}}" Value="True">
