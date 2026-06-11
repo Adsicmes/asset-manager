@@ -65,14 +65,15 @@ public sealed class AssetThumbnailLoadCoordinator : IDisposable
 
     public void Cancel()
     {
-        if (_session is null)
+        var session = _session;
+        if (session is null)
         {
             return;
         }
 
-        _session.Cancel(LocalizationManager.Get("BackgroundTaskThumbnailCanceled"));
-        _session.Dispose();
         _session = null;
+        session.Cancel(LocalizationManager.Get("BackgroundTaskThumbnailCanceled"));
+        session.Dispose();
     }
 
     public void Dispose()
@@ -138,9 +139,8 @@ public sealed class AssetThumbnailLoadCoordinator : IDisposable
             if (ReferenceEquals(_session, session))
             {
                 _session = null;
+                session.Dispose();
             }
-
-            session.Dispose();
         }
     }
 
