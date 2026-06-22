@@ -36,6 +36,56 @@
     </Window.Resources>
 
     <DockPanel Margin="12" LastChildFill="True">
+        <Menu DockPanel.Dock="Top"
+              Background="White"
+              BorderBrush="#D6DCE5"
+              BorderThickness="1"
+              IsEnabled="{Binding CanInteract}"
+              Margin="0,0,0,8">
+            <MenuItem Header="{DynamicResource MenuFile}">
+                <MenuItem Header="{DynamicResource RegisterLibraryButton}" Click="RegisterLibrary_Click" />
+                <Separator />
+                <MenuItem Header="{DynamicResource NewFolderButton}" Click="NewFolder_Click" InputGestureText="Ctrl+Shift+N" />
+                <MenuItem Header="{DynamicResource NewTextButton}" Click="NewText_Click" />
+                <Separator />
+                <MenuItem Header="{DynamicResource ImportFilesButton}" Click="ImportFiles_Click" InputGestureText="Ctrl+I" />
+                <MenuItem Header="{DynamicResource ImportFolderButton}" Click="ImportFolder_Click" />
+            </MenuItem>
+            <MenuItem Header="{DynamicResource MenuEdit}">
+                <MenuItem Header="{DynamicResource CopyButton}" Click="CopySelection_Click" />
+            </MenuItem>
+            <MenuItem Header="{DynamicResource MenuView}">
+                <MenuItem Header="{DynamicResource ThumbnailFieldsButton}" Click="ThumbnailFieldsButton_Click" />
+                <MenuItem x:Name="PinDetailsPanelMenuItem"
+                          Header="{DynamicResource PinDetailsPanelMenuItem}"
+                          IsCheckable="True"
+                          IsChecked="{Binding IsDetailsPanelPinned, Mode=OneWay}"
+                          Click="PinDetailsPanel_Click" />
+            </MenuItem>
+            <MenuItem Header="{DynamicResource MenuLibrary}">
+                <MenuItem Header="{DynamicResource RefreshLibrariesButton}" Click="RefreshLibraries_Click" />
+                <MenuItem Header="{DynamicResource SyncButton}" Click="Sync_Click" InputGestureText="F5" />
+                <Separator />
+                <MenuItem x:Name="LowImpactImportMenuItem"
+                          Header="{DynamicResource LowImpactImportLabel}"
+                          ToolTip="{DynamicResource LowImpactImportTooltip}"
+                          IsCheckable="True"
+                          IsChecked="{Binding IsLowImpactImportEnabled, Mode=OneWay}"
+                          Click="LowImpactImportCheckBox_Click" />
+            </MenuItem>
+            <MenuItem Header="{DynamicResource MenuSettings}">
+                <MenuItem Header="{DynamicResource LanguageLabel}"
+                          ItemsSource="{Binding LanguageOptions}">
+                    <MenuItem.ItemContainerStyle>
+                        <Style TargetType="MenuItem">
+                            <Setter Property="Header" Value="{Binding DisplayName}" />
+                            <EventSetter Event="Click" Handler="LanguageMenuItem_Click" />
+                        </Style>
+                    </MenuItem.ItemContainerStyle>
+                </MenuItem>
+            </MenuItem>
+        </Menu>
+
         <Border DockPanel.Dock="Top"
                 Background="White"
                 BorderBrush="#D6DCE5"
@@ -44,16 +94,14 @@
                 IsEnabled="{Binding CanInteract}"
                 Margin="0,0,0,10">
             <DockPanel LastChildFill="True">
-                <WrapPanel DockPanel.Dock="Top" Margin="0,0,0,8">
-                    <TextBlock Text="{DynamicResource LanguageLabel}"
-                               VerticalAlignment="Center"
-                               Margin="0,0,8,0"
-                               Foreground="#334155" />
-                    <ComboBox x:Name="LanguageBox"
-                              Width="138"
-                              ItemsSource="{Binding LanguageOptions}"
-                              DisplayMemberPath="DisplayName"
-                              SelectionChanged="LanguageBox_SelectionChanged" />
+                <Grid DockPanel.Dock="Top" Margin="0,0,0,8">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="Auto" />
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="Auto" />
+                    </Grid.ColumnDefinitions>
+
+                    <StackPanel Grid.Column="0" Orientation="Horizontal">
                     <TextBlock Text="{DynamicResource LibraryLabel}"
                                VerticalAlignment="Center"
                                Margin="0,0,8,0"
@@ -63,46 +111,48 @@
                               ItemsSource="{Binding KnownLibraries}"
                               DisplayMemberPath="DisplayText"
                               SelectionChanged="KnownLibraryBox_SelectionChanged" />
-                    <Button Content="{DynamicResource RegisterLibraryButton}" Click="RegisterLibrary_Click" />
-                    <Button Content="{DynamicResource RefreshLibrariesButton}" Click="RefreshLibraries_Click" />
-                    <Button Content="{DynamicResource NewFolderButton}" Click="NewFolder_Click" />
-                    <Button Content="{DynamicResource ImportFilesButton}" Click="ImportFiles_Click" />
-                    <Button Content="{DynamicResource ImportFolderButton}" Click="ImportFolder_Click" />
-                    <CheckBox x:Name="LowImpactImportCheckBox"
-                              Content="{DynamicResource LowImpactImportLabel}"
-                              IsChecked="{Binding IsLowImpactImportEnabled, Mode=OneWay}"
-                              ToolTip="{DynamicResource LowImpactImportTooltip}"
-                              VerticalAlignment="Center"
-                              Margin="0,0,12,0"
-                              Click="LowImpactImportCheckBox_Click" />
-                    <Button Content="{DynamicResource NewTextButton}" Click="NewText_Click" />
-                    <Button Content="{DynamicResource SyncButton}" Click="Sync_Click" />
-                    <Button Content="{DynamicResource CopyButton}" Click="CopySelection_Click" />
-                </WrapPanel>
-                <DockPanel DockPanel.Dock="Bottom" LastChildFill="True">
-                    <TextBlock DockPanel.Dock="Left"
-                               Width="260"
-                               VerticalAlignment="Center"
-                               Foreground="#334155"
-                               Text="{Binding CurrentFolderMessage}" />
-                    <Button DockPanel.Dock="Right"
-                            Content="{DynamicResource SearchButton}"
-                            Click="Search_Click"
-                            MinWidth="72" />
+                    <Button Content="{DynamicResource NewFolderButton}"
+                            Click="NewFolder_Click"
+                            ToolTip="Ctrl+Shift+N" />
+                    <StackPanel Orientation="Horizontal" Margin="0,0,8,0">
+                        <Button Content="{DynamicResource ImportFilesButton}"
+                                Click="ImportFiles_Click"
+                                Margin="0"
+                                ToolTip="Ctrl+I" />
+                        <Button x:Name="ImportDropDownButton"
+                                Content="▼"
+                                MinWidth="28"
+                                Padding="6,6"
+                                Margin="0"
+                                Click="ImportDropDown_Click">
+                            <Button.ContextMenu>
+                                <ContextMenu>
+                                    <MenuItem Header="{DynamicResource ImportFilesButton}" Click="ImportFiles_Click" />
+                                    <MenuItem Header="{DynamicResource ImportFolderButton}" Click="ImportFolder_Click" />
+                                </ContextMenu>
+                            </Button.ContextMenu>
+                        </Button>
+                    </StackPanel>
+                    <Button Content="{DynamicResource SyncButton}"
+                            Click="Sync_Click"
+                            ToolTip="F5" />
+                    </StackPanel>
+
+                    <StackPanel Grid.Column="2" Orientation="Horizontal">
+                    <TextBox x:Name="SearchBox"
+                             Width="260"
+                             ToolTip="{DynamicResource SearchTooltip}"
+                             KeyDown="SearchBox_KeyDown" />
                     <TextBox x:Name="TagFilterBox"
-                             DockPanel.Dock="Right"
                              Width="180"
                              ToolTip="{DynamicResource TagFilterTooltip}"
                              KeyDown="SearchBox_KeyDown" />
-                    <TextBox x:Name="SearchBox"
-                             MinWidth="260"
-                             ToolTip="{DynamicResource SearchTooltip}"
-                             KeyDown="SearchBox_KeyDown" />
-                </DockPanel>
-                <TextBlock DockPanel.Dock="Bottom"
-                           Margin="0,8,0,0"
-                           Foreground="#64748B"
-                           Text="{Binding LibraryRootMessage}" />
+                    <Button
+                             Content="{DynamicResource SearchButton}"
+                             Click="Search_Click"
+                             MinWidth="72" />
+                    </StackPanel>
+                </Grid>
             </DockPanel>
         </Border>
 
@@ -133,6 +183,20 @@
                 <TextBlock Text="{Binding StatusMessage}"
                            Foreground="#475569"
                            TextTrimming="CharacterEllipsis" />
+            </StatusBarItem>
+            <Separator />
+            <StatusBarItem HorizontalAlignment="Right">
+                <StackPanel Orientation="Horizontal">
+                    <TextBlock Text="{Binding CurrentFolderMessage}"
+                               Foreground="#64748B"
+                               TextTrimming="CharacterEllipsis"
+                               MaxWidth="260" />
+                    <TextBlock Text="  |  " Foreground="#CBD5E1" />
+                    <TextBlock Text="{Binding LibraryRootMessage}"
+                               Foreground="#64748B"
+                               TextTrimming="CharacterEllipsis"
+                               MaxWidth="420" />
+                </StackPanel>
             </StatusBarItem>
         </StatusBar>
 

@@ -4,6 +4,11 @@
     <sys:String x:Key="AppTitle">素材管理器</sys:String>
     <sys:String x:Key="LanguageLabel">语言</sys:String>
     <sys:String x:Key="LibraryLabel">素材库</sys:String>
+    <sys:String x:Key="MenuFile">文件</sys:String>
+    <sys:String x:Key="MenuEdit">编辑</sys:String>
+    <sys:String x:Key="MenuView">视图</sys:String>
+    <sys:String x:Key="MenuLibrary">素材库</sys:String>
+    <sys:String x:Key="MenuSettings">设置</sys:String>
     <sys:String x:Key="RegisterLibraryButton">注册素材库</sys:String>
     <sys:String x:Key="RefreshLibrariesButton">刷新素材库</sys:String>
     <sys:String x:Key="NewFolderButton">新建文件夹</sys:String>
@@ -85,6 +90,7 @@
     <sys:String x:Key="PreviewHeader">预览</sys:String>
     <sys:String x:Key="CollapseDetailsPanelButton">收起详情</sys:String>
     <sys:String x:Key="ExpandDetailsPanelButton">展开详情</sys:String>
+    <sys:String x:Key="PinDetailsPanelMenuItem">固定详情面板</sys:String>
     <sys:String x:Key="SelectAssetToPreview">请选择一个素材进行预览。</sys:String>
     <sys:String x:Key="PlayButton">播放</sys:String>
     <sys:String x:Key="PauseButton">暂停</sys:String>

@@ -94,6 +94,7 @@ public sealed class UiSettingsStore
             : new AssetViewSettings(
                 assetView.AssetPreviewScale,
                 assetView.IsDetailsPanelExpanded,
+                assetView.IsDetailsPanelPinned,
                 assetView.DetailsPanelWidth,
                 assetView.CurrentFolder,
                 assetView.AssetListVerticalOffset);
@@ -108,6 +109,7 @@ public sealed class UiSettingsStore
         {
             AssetPreviewScale = assetViewSettings.AssetPreviewScale,
             IsDetailsPanelExpanded = assetViewSettings.IsDetailsPanelExpanded,
+            IsDetailsPanelPinned = assetViewSettings.IsDetailsPanelPinned,
             DetailsPanelWidth = assetViewSettings.DetailsPanelWidth,
             CurrentFolder = assetViewSettings.CurrentFolder,
             AssetListVerticalOffset = assetViewSettings.AssetListVerticalOffset
@@ -197,6 +199,8 @@ public sealed class UiSettingsStore
 
         public bool IsDetailsPanelExpanded { get; set; } = AssetViewSettings.Default.IsDetailsPanelExpanded;
 
+        public bool IsDetailsPanelPinned { get; set; } = AssetViewSettings.Default.IsDetailsPanelPinned;
+
         public double DetailsPanelWidth { get; set; } = AssetViewSettings.Default.DetailsPanelWidth;
 
         public string CurrentFolder { get; set; } = AssetViewSettings.Default.CurrentFolder;
@@ -208,13 +212,15 @@ public sealed class UiSettingsStore
 public sealed record AssetViewSettings(
     double AssetPreviewScale,
     bool IsDetailsPanelExpanded,
+    bool IsDetailsPanelPinned,
     double DetailsPanelWidth,
     string CurrentFolder,
     double AssetListVerticalOffset)
 {
     public static AssetViewSettings Default { get; } = new(
         AssetPreviewScale: 1d,
-        IsDetailsPanelExpanded: true,
+        IsDetailsPanelExpanded: false,
+        IsDetailsPanelPinned: false,
         DetailsPanelWidth: 360d,
         CurrentFolder: string.Empty,
         AssetListVerticalOffset: 0d);

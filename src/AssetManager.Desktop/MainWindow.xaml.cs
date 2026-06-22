@@ -49,10 +49,10 @@ public partial class MainWindow : Window, INotifyPropertyChanged
     private string _currentFolderMessage = string.Empty;
     private bool _isSelectingFolder;
     private bool _isRefreshingKnownLibraries;
-    private bool _isChangingLanguage;
     private bool _isBusy;
     private bool _isLowImpactImportEnabled;
-    private bool _isDetailsPanelExpanded = true;
+    private bool _isDetailsPanelExpanded;
+    private bool _isDetailsPanelPinned;
     private double _assetPreviewScale = 1d;
     private double _detailsPanelWidth = DefaultDetailsPanelWidth;
     private double _assetListVerticalOffset;
@@ -98,13 +98,13 @@ public partial class MainWindow : Window, INotifyPropertyChanged
                 TextPreview,
                 UnsupportedPreviewText));
         DataContext = this;
+        PreviewKeyDown += MainWindow_PreviewKeyDown;
 
         foreach (var languageOption in LocalizationManager.SupportedLanguages)
         {
             LanguageOptions.Add(languageOption);
         }
 
-        SelectCurrentLanguage();
         StatusMessage = LocalizationManager.Get("StatusRegisterOrSelectLibrary");
         UpdateLibraryRootMessage();
         UpdateCurrentFolderMessage();
@@ -138,6 +138,21 @@ public partial class MainWindow : Window, INotifyPropertyChanged
 
     public string DetailsPanelToggleText => LocalizationManager.Get(
         _isDetailsPanelExpanded ? "CollapseDetailsPanelButton" : "ExpandDetailsPanelButton");
+
+    public bool IsDetailsPanelPinned
+    {
+        get => _isDetailsPanelPinned;
+        private set
+        {
+            if (_isDetailsPanelPinned == value)
+            {
+                return;
+            }
+
+            _isDetailsPanelPinned = value;
+            OnPropertyChanged(nameof(IsDetailsPanelPinned));
+        }
+    }
 
     public bool IsLowImpactImportEnabled
     {
@@ -215,9 +230,9 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         base.OnClosed(e);
     }
 
-    private async void LanguageBox_SelectionChanged(object sender, SelectionChangedEventArgs e)
+    private async void LanguageMenuItem_Click(object sender, RoutedEventArgs e)
     {
-        if (_isChangingLanguage || LanguageBox.SelectedItem is not LanguageOption languageOption)
+        if (sender is not MenuItem { DataContext: LanguageOption languageOption })
         {
             return;
         }
@@ -249,6 +264,11 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         });
     }
 
+    private void ImportDropDown_Click(object sender, RoutedEventArgs e)
+    {
+        ImportDropDownButton.ContextMenu.IsOpen = true;
+    }
+
     private async void Window_Loaded(object sender, RoutedEventArgs e)
     {
         await RunUiAsync(async () =>
@@ -276,6 +296,38 @@ public partial class MainWindow : Window, INotifyPropertyChanged
 
             await OpenKnownLibraryAsync(activeLibrary.Id);
         });
+    }
+
+    private void MainWindow_PreviewKeyDown(object sender, KeyEventArgs e)
+    {
+        if ((Keyboard.Modifiers & ModifierKeys.Control) == ModifierKeys.Control && e.Key == Key.I)
+        {
+            ImportFiles_Click(sender, e);
+            e.Handled = true;
+            return;
+        }
+
+        if ((Keyboard.Modifiers & (ModifierKeys.Control | ModifierKeys.Shift)) == (ModifierKeys.Control | ModifierKeys.Shift)
+            && e.Key == Key.N)
+        {
+            NewFolder_Click(sender, e);
+            e.Handled = true;
+            return;
+        }
+
+        if ((Keyboard.Modifiers & ModifierKeys.Control) == ModifierKeys.Control && e.Key == Key.F)
+        {
+            SearchBox.Focus();
+            SearchBox.SelectAll();
+            e.Handled = true;
+            return;
+        }
+
+        if (e.Key == Key.F5)
+        {
+            Sync_Click(sender, e);
+            e.Handled = true;
+        }
     }
 
     private async void RegisterLibrary_Click(object sender, RoutedEventArgs e)
@@ -466,7 +518,17 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         if (AssetList.SelectedItem is not AssetRow row)
         {
             ClearDetails();
+            if (!IsDetailsPanelPinned)
+            {
+                SetDetailsPanelExpanded(false, captureCurrentWidth: true, save: true);
+            }
+
             return;
+        }
+
+        if (!_isDetailsPanelExpanded)
+        {
+            SetDetailsPanelExpanded(true, captureCurrentWidth: false, save: true);
         }
 
         NotesBox.Text = row.Notes;
@@ -497,8 +559,21 @@ public partial class MainWindow : Window, INotifyPropertyChanged
 
     private void ToggleDetailsPanel_Click(object sender, RoutedEventArgs e)
     {
-        _isDetailsPanelExpanded = !_isDetailsPanelExpanded;
-        ApplyDetailsPanelState(captureCurrentWidth: true);
+        SetDetailsPanelExpanded(!_isDetailsPanelExpanded, captureCurrentWidth: true, save: true);
+    }
+
+    private void PinDetailsPanel_Click(object sender, RoutedEventArgs e)
+    {
+        IsDetailsPanelPinned = PinDetailsPanelMenuItem.IsChecked;
+        if (IsDetailsPanelPinned)
+        {
+            SetDetailsPanelExpanded(true, captureCurrentWidth: false, save: false);
+        }
+        else if (AssetList.SelectedItem is null)
+        {
+            SetDetailsPanelExpanded(false, captureCurrentWidth: true, save: false);
+        }
+
         _ = SaveAssetViewSettingsAsync();
     }
 
@@ -526,7 +601,7 @@ public partial class MainWindow : Window, INotifyPropertyChanged
 
     private async void LowImpactImportCheckBox_Click(object sender, RoutedEventArgs e)
     {
-        IsLowImpactImportEnabled = LowImpactImportCheckBox.IsChecked == true;
+        IsLowImpactImportEnabled = LowImpactImportMenuItem.IsChecked;
 
         await RunUiAsync(async () =>
         {
@@ -1008,6 +1083,7 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         _assetViewSettings = settings;
         SetAssetPreviewScale(settings.AssetPreviewScale);
         _isDetailsPanelExpanded = settings.IsDetailsPanelExpanded;
+        IsDetailsPanelPinned = settings.IsDetailsPanelPinned;
         _detailsPanelWidth = Math.Clamp(settings.DetailsPanelWidth, 260d, 800d);
         _assetListVerticalOffset = Math.Max(0d, settings.AssetListVerticalOffset);
         ApplyDetailsPanelState();
@@ -1018,9 +1094,25 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         return _uiSettingsStore.SaveAssetViewSettingsAsync(new AssetViewSettings(
             _assetPreviewScale,
             _isDetailsPanelExpanded,
+            IsDetailsPanelPinned,
             _detailsPanelWidth,
             _currentFolder.Value,
             _assetListVerticalOffset));
+    }
+
+    private void SetDetailsPanelExpanded(bool isExpanded, bool captureCurrentWidth, bool save)
+    {
+        if (_isDetailsPanelExpanded == isExpanded)
+        {
+            return;
+        }
+
+        _isDetailsPanelExpanded = isExpanded;
+        ApplyDetailsPanelState(captureCurrentWidth);
+        if (save)
+        {
+            _ = SaveAssetViewSettingsAsync();
+        }
     }
 
     private LibraryRelativePath ResolveSavedFolder(LibraryRelativePath fallbackFolder)
@@ -1698,20 +1790,6 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         }
 
         return -1;
-    }
-
-    private void SelectCurrentLanguage()
-    {
-        _isChangingLanguage = true;
-        try
-        {
-            LanguageBox.SelectedItem = LanguageOptions.FirstOrDefault(language =>
-                string.Equals(language.CultureName, LocalizationManager.CurrentCultureName, StringComparison.OrdinalIgnoreCase));
-        }
-        finally
-        {
-            _isChangingLanguage = false;
-        }
     }
 
     private void UpdateCurrentFolderMessage()

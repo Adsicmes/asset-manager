@@ -4,6 +4,11 @@
     <sys:String x:Key="AppTitle">Asset Manager</sys:String>
     <sys:String x:Key="LanguageLabel">Language</sys:String>
     <sys:String x:Key="LibraryLabel">Library</sys:String>
+    <sys:String x:Key="MenuFile">File</sys:String>
+    <sys:String x:Key="MenuEdit">Edit</sys:String>
+    <sys:String x:Key="MenuView">View</sys:String>
+    <sys:String x:Key="MenuLibrary">Library</sys:String>
+    <sys:String x:Key="MenuSettings">Settings</sys:String>
     <sys:String x:Key="RegisterLibraryButton">Register Library</sys:String>
     <sys:String x:Key="RefreshLibrariesButton">Refresh Libraries</sys:String>
     <sys:String x:Key="NewFolderButton">New Folder</sys:String>
@@ -85,6 +90,7 @@
     <sys:String x:Key="PreviewHeader">Preview</sys:String>
     <sys:String x:Key="CollapseDetailsPanelButton">Collapse Details</sys:String>
     <sys:String x:Key="ExpandDetailsPanelButton">Expand Details</sys:String>
+    <sys:String x:Key="PinDetailsPanelMenuItem">Pin Details Panel</sys:String>
     <sys:String x:Key="SelectAssetToPreview">Select an asset to preview.</sys:String>
     <sys:String x:Key="PlayButton">Play</sys:String>
     <sys:String x:Key="PauseButton">Pause</sys:String>
